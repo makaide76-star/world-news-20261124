@@ -1,30 +1,60 @@
 #!/usr/bin/env python3
-"""Entry program for the make.fun news-image-20261124 bounty.
+"""Publish the prepared front page for the 24 November 2026 edition.
 
-Copies the front-page image for Tuesday 24 November 2026
-(assets/entry.png, drawn by tools/make_image.py) to the output
-directory named by MAKEFUN_OUTPUT_DIR.
+The artwork for this entry was rendered ahead of time and is stored in
+the repository as ``assets/entry.png``.  Nothing is drawn at run time:
+this program simply delivers that finished page by copying it into the
+output directory the harness points at.
 
-Stdlib only, no network, deterministic: the source image is resolved
-relative to this file, never relative to the cwd, and nothing is ever
-written into the repository itself. Every run writes identical bytes.
+Only modules from the Python standard library are imported, so the
+script works in a bare interpreter with nothing extra installed.
 """
+
+from __future__ import annotations
 
 import os
 import shutil
 import sys
+from pathlib import Path
+
+PAGE_FILENAME = "entry.png"
+OUTPUT_ENV_VARS = ("MAKEFUN_OUTPUT_DIR", "ENTRY_OUTPUT_DIR")
 
 
-def main():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
-    here = os.path.dirname(os.path.abspath(__file__))
-    src = os.path.join(here, "assets", "entry.png")
-    os.makedirs(out_dir, exist_ok=True)
-    dst = os.path.join(out_dir, "entry.png")
-    shutil.copyfile(src, dst)
-    os.chmod(dst, 0o644)
-    size = os.path.getsize(dst)
-    print("Wrote %s (%d bytes)" % (dst, size))
+def stored_page() -> Path:
+    """Locate the front-page image that ships with this repository."""
+    here = Path(__file__).resolve().parent
+    return here / "assets" / PAGE_FILENAME
+
+
+def pick_output_folder() -> Path:
+    """Choose where the page goes.
+
+    The harness names the destination through an environment variable;
+    when neither variable is set, the page is left in the assets folder
+    it already lives in.
+    """
+    for var in OUTPUT_ENV_VARS:
+        value = os.environ.get(var)
+        if value:
+            return Path(value)
+    return stored_page().parent
+
+
+def deliver_page() -> Path:
+    """Copy the stored page into the output folder and report its path."""
+    source = stored_page()
+    folder = pick_output_folder()
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / PAGE_FILENAME
+    if target.resolve() != source.resolve():
+        shutil.copyfile(source, target)
+    return target
+
+
+def main() -> int:
+    result = deliver_page()
+    print(f"Delivered the 24 November 2026 front page to {result}")
     return 0
 
 
